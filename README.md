@@ -1,6 +1,30 @@
 # A Link to the Past Online - ALttPO
 ALttPO script integration for [bsnes-as](//github.com/alttpo/bsnes-as).
 
+> **Our fork:** `al5ina5/alttp` (unstable branch) + `al5ina5/bsnes-as` (stable branch)
+> Aiming for 100% playable full multiplayer.
+
+## Progress (vs upstream)
+
+| Feature | Upstream | Our fork |
+|---------|----------|----------|
+| Equipment sync (swords, items) | ✅ | ✅ |
+| Dungeon items (compasses, maps, big keys) | ✅ | ✅ |
+| Tilemap sync (overworld) | ✅ | ✅ |
+| **Bombs (count)** | ❌ TODO | ✅ **Enabled** |
+| **Arrows (count)** | ❌ TODO | ✅ **Enabled** |
+| **Rupees** | ❌ Not synced | ✅ **Enabled** |
+| Small keys per dungeon | ⚠️ Off by default | ✅ **Enabled by default** |
+| Bottle contents | ✅ | ✅ |
+| Health capacity sync | ✅ | ✅ |
+| Enemy/boss sync | ❌ | ❌ Coming next |
+| Frame sequence numbers | ❌ | ❌ Planned |
+| Checksum/desync detection | ❌ | ❌ Planned |
+| Object sync (bombs, arrows visible) | ❌ Disabled | ❌ Planned |
+| Underworld tile sync (pots, star tiles) | ❌ | ❌ Planned |
+
+See [docs/SYNC-COVERAGE.md](docs/SYNC-COVERAGE.md) for the full sync matrix.
+
 See a demo video: https://www.youtube.com/watch?v=_MTfXCUXawg
 
 Join us on discord! https://discord.gg/AVQ2yKd - this is where the community is and you get access to latest updates and be able to suggest and vote on new features.
