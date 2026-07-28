@@ -82,7 +82,7 @@ abstract class ROMMapping {
     whenSyncItems(@SyncableItem(0x340, 1, 1, @nameForBow)),         // bow
     whenSyncItems(@SyncableItem(0x341, 1, 1, @nameForBoomerang)),   // boomerang
     whenSyncItems(@SyncableItem(0x342, 1, 1, @nameForHookshot)),    // hookshot
-    //SyncableItem(0x343, 1, 3),  // bombs (TODO)
+    whenSyncItems(@SyncableItem(0x343, 1, 1, @nameForBombs)),       // bombs
     whenSyncItems(@SyncableItem(0x344, 1, 1, @nameForMushroom)),    // mushroom
     whenSyncItems(@SyncableItem(0x345, 1, 1, @nameForFirerod)),     // fire rod
     whenSyncItems(@SyncableItem(0x346, 1, 1, @nameForIcerod)),      // ice rod
@@ -121,13 +121,16 @@ abstract class ROMMapping {
     whenSyncDungeonItems(@SyncableItem(0x368, 1, 2, @nameForMap1)),      // dungeon maps 1/2
     whenSyncDungeonItems(@SyncableItem(0x369, 1, 2, @nameForMap2)),      // dungeon maps 2/2
 
-    @SyncableHealthCapacity(),  // heart pieces (out of four) [0x36B], health capacity [0x36C]
+    @SyncableHealthCapacity(),  // heart pieces [0x36B], health capacity [0x36C]
+
+    // rupees - 16-bit, max wins
+    whenSyncItems(@SyncableItem(0x360, 2, 1, @nameForRupees)),
 
     whenSyncItems(@SyncableItem(0x370, 1, 1)),  // bombs capacity
     whenSyncItems(@SyncableItem(0x371, 1, 1)),  // arrows capacity
 
-    whenSyncPendants(@SyncableItem(0x374, 1, 2, @nameForPendants)),  // pendants
-    //SyncableItem(0x377, 1, 1),  // arrows
+    whenSyncPendants(@SyncableItem(0x374, 1, 2, @nameForPendants)),
+    whenSyncItems(@SyncableItem(0x377, 1, 1, @nameForArrows)),  // arrows
     whenSyncItems(@SyncableItem(0x379, 1, 2)),  // player ability flags
     whenSyncCrystals(@SyncableItem(0x37A, 1, 2, @nameForCrystals)),  // crystals
 

@@ -517,6 +517,22 @@ uint16 mutateBottleItem(SRAM@ localSRAM, uint16 oldValue, uint16 newValue) {
   return oldValue;
 }
 
+// Delta-sum for consumables: add local + remote changes together, cap at max
+uint16 mutateDeltaSumByte(SRAM@ localSRAM, uint16 oldValue, uint16 newValue, uint8 maxVal = 255) {
+  // newValue is the DELTA (change from remote), not absolute value
+  // We add the delta to our current value, capped at max
+  uint16 result = oldValue + newValue;
+  if (result > maxVal) result = maxVal;
+  return uint8(result);
+}
+
+// Delta-sum for 16-bit values (rupees)
+uint16 mutateDeltaSumWord(SRAM@ localSRAM, uint16 oldValue, uint16 newValue, uint16 maxVal = 9999) {
+  uint32 result = uint32(oldValue) + uint32(newValue);
+  if (result > maxVal) result = maxVal;
+  return uint16(result);
+}
+
 uint16 mutateZeroToNonZero(SRAM@ localSRAM, uint16 oldValue, uint16 newValue) {
   // Allow if replacing 'no item':
   if (oldValue == 0 && newValue != 0) return newValue;
@@ -662,6 +678,9 @@ void nameForSword            (uint16 _, uint16 new, NotifyItemReceived @notify) 
 void nameForShield           (uint16 _, uint16 new, NotifyItemReceived @notify) { notifySingleItem(shieldNames, notify, new); }
 void nameForArmor            (uint16 _, uint16 new, NotifyItemReceived @notify) { notifySingleItem(armorNames, notify, new); }
 void nameForBottle           (uint16 _, uint16 new, NotifyItemReceived @notify) { notifySingleItem(bottleNames, notify, new); }
+void nameForBombs          (uint16 _, uint16 new, NotifyItemReceived @notify) { notify(fmtInt(new) + " bombs"); }
+void nameForArrows        (uint16 _, uint16 new, NotifyItemReceived @notify) { notify(fmtInt(new) + " arrows"); }
+void nameForRupees        (uint16 _, uint16 new, NotifyItemReceived @notify) { notify(fmtInt(new) + " rupees"); }
 
 void nameForMagic         (uint16 _, uint16 new, NotifyItemReceived @notify) { notifySingleItem(magicNames, notify, new); }
 void nameForWorldState    (uint16 _, uint16 new, NotifyItemReceived @notify) { notifySingleItem(worldStateNames, notify, new); }

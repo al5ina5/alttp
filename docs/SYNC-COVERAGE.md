@@ -77,10 +77,10 @@ This document tracks what state is currently synchronized in ALttPO multiplayer.
 
 | Address | Item | Type | Reason |
 |---------|------|------|--------|
-| 0x343 | **Bombs (count)** | Delta-sum | TODO commented out - prevents sharing ammo |
-| 0x377 | **Arrows (count)** | Delta-sum | TODO commented out - prevents sharing ammo |
-| 0x360-0x362 | **Rupees** | Delta-sum | Not synced - can't share wallet |
-| N/A | **Small Keys** | Delta-sum | Implemented but OFF by default |
+| 0x343 | **Bombs (count)** | 1 (max) | ✅ Just enabled |
+| 0x377 | **Arrows (count)** | 1 (max) | ✅ Just enabled |
+| 0x360 | **Rupees** | 1 (max) | ✅ Just enabled |
+| N/A | **Small Keys** | Delta-sum | ⚠️ Implemented but OFF by default |
 | N/A | **Temporary underworld** | Tilemap | Pots, star tiles, trap floors not synced |
 
 ### P1 - QUALITY CO-OP
