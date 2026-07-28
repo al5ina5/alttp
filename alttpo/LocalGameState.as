@@ -1203,6 +1203,11 @@ class LocalGameState : GameState {
     }
   }
 
+  void serialize_checksum(array<uint8> &r) {
+    r.write_u8(uint8(0x11));
+    r.write_u32(checksum);
+  }
+
   void serialize_sfx(array<uint8> &r) {
     r.write_u8(uint8(0x02));
 
@@ -1707,6 +1712,14 @@ class LocalGameState : GameState {
       if (rom.has_extras) {
         auto @envelope = create_envelope();
         rom.serialize_extras(envelope, serializeSramDelegate);
+        p = send_packet(envelope, p);
+      }
+
+      // send checksum every 8 frames for desync detection:
+      if ((frame & 7) == 0) {
+        checksum = compute_checksum();
+        auto @envelope = create_envelope();
+        serialize_checksum(envelope);
         p = send_packet(envelope, p);
       }
 

@@ -19,6 +19,17 @@ bool locations_equal(uint32 a, uint32 b) {
 const uint16 small_keys_min_offs = 0xF37C;
 const uint16 small_keys_max_offs = 0xF38C;
 
+// FNV-1a hash for desync detection
+uint32 fnv1a(array<uint8>@ data, uint start = 0, uint end = 0) {
+  uint32 hash = 0x811C9DC5;
+  if (end == 0 || end > data.length()) { end = data.length(); }
+  for (uint i = start; i < end; i++) {
+    hash ^= uint32(data[i]);
+    hash *= 0x01000193;
+  }
+  return hash;
+}
+
 bool players_updated = false;
 
 class GameState {
@@ -28,6 +39,10 @@ class GameState {
 
   uint16 last_received_frame = 0;
   uint16 dropped_frames = 0;
+
+  // desync detection:
+  uint32 checksum = 0;
+  uint32 remote_checksum = 0;
 
   // graphics data for current frame:
   array<Sprite@> sprites;
@@ -510,6 +525,7 @@ class GameState {
         case 0x0E: c = deserialize_sram_buffer(r, c); break;
         case 0x0F: c = deserialize_sm_location(r, c); break;
         case 0x10: c = deserialize_sm_sprite(r, c); break;
+        case 0x11: c = deserialize_checksum(r, c); break;
         default:
           message("unknown packet type " + fmtHex(packetType, 2) + " at offs " + fmtHex(c, 3));
           break;
@@ -878,6 +894,31 @@ class GameState {
     }
     sm_clear = r[c++];
     z3_clear = r[c++];
+    return c;
+  }
+
+  uint32 compute_checksum() {
+    // hash sram[0..0x4FF], module, x, y using fnv1a()
+    array<uint8> buf;
+    buf.reserve(0x500 + 5);
+    for (uint i = 0; i < 0x500; i++) {
+      buf.insertLast(sram[i]);
+    }
+    buf.insertLast(module);
+    buf.insertLast(uint8(x & 0xFF));
+    buf.insertLast(uint8((x >> 8) & 0xFF));
+    buf.insertLast(uint8(y & 0xFF));
+    buf.insertLast(uint8((y >> 8) & 0xFF));
+    return fnv1a(buf);
+  }
+
+  int deserialize_checksum(array<uint8> r, int c) {
+    remote_checksum = uint32(r[c++]) | (uint32(r[c++]) << 8) | (uint32(r[c++]) << 16) | (uint32(r[c++]) << 24);
+    checksum = compute_checksum();
+    if (remote_checksum != checksum) {
+      dropped_frames++;
+      message("DESYNC DETECTED for player " + name + " (checksum mismatch)");
+    }
     return c;
   }
 
