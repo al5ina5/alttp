@@ -17,11 +17,14 @@ ALttPO script integration for [bsnes-as](//github.com/alttpo/bsnes-as).
 | Small keys per dungeon | ⚠️ Off by default | ✅ **Enabled by default** |
 | Bottle contents | ✅ | ✅ |
 | Health capacity sync | ✅ | ✅ |
+| **Frame sequence numbers** | ❌ | ✅ **uint16 frame tracking** |
+| **Desync detection (checksums)** | ❌ | ✅ **FNV-1a state hash** |
+| **Snapshot/resync protocol** | ❌ | ✅ **Server relay implemented** |
+| **VRAM attribute byte** | ❌ Bug | ✅ **Fixed** |
 | Enemy/boss sync | ❌ | ❌ Coming next |
-| Frame sequence numbers | ❌ | ❌ Planned |
-| Checksum/desync detection | ❌ | ❌ Planned |
 | Object sync (bombs, arrows visible) | ❌ Disabled | ❌ Planned |
-| Underworld tile sync (pots, star tiles) | ❌ | ❌ Planned |
+| Underworld tile sync (pots, star tiles) | ❌ | ❌ Report + VRAM fix done |
+| Unified game launcher | ❌ | ❌ Future roadmap |
 
 See [docs/SYNC-COVERAGE.md](docs/SYNC-COVERAGE.md) for the full sync matrix.
 
