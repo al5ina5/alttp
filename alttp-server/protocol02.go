@@ -152,7 +152,7 @@ func processProtocol02(message UDPMessage, buf *bytes.Buffer) (fatalErr error) {
 		break
 	case SnapshotData:
 		// host is responding with snapshot data to a specific client
-		// read target client index from payload:
+		// read target client index from payload (first uint16 after the header fields):
 		var targetIdx uint16
 		if err := binary.Read(buf, binary.LittleEndian, &targetIdx); err != nil {
 			log.Print(err)
@@ -210,7 +210,7 @@ func processProtocol02(message UDPMessage, buf *bytes.Buffer) (fatalErr error) {
 			}
 			networkMetrics.SentBytes(len(rspBytes), kind.String(), clientGroup, client)
 			rsp = nil
-			//log.Printf("[group %s] (%v) sent message to (%v)\n", groupKey, client, other)
+			//log.Printf("[group %s] (%v) sent message to (%v)\\n", groupKey, client, other)
 		}
 		break
 	case BroadcastToSector:
@@ -254,7 +254,7 @@ func processProtocol02(message UDPMessage, buf *bytes.Buffer) (fatalErr error) {
 			}
 			networkMetrics.SentBytes(len(rspBytes), kind.String(), clientGroup, client)
 			rsp = nil
-			//log.Printf("[group %s] (%v) sent message to (%v)\n", groupKey, client, other)
+			//log.Printf("[group %s] (%v) sent message to (%v)\\n", groupKey, client, other)
 		}
 		break
 	}
