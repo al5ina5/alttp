@@ -12,6 +12,8 @@ const (
 	RequestIndex      = P02Kind(0x00)
 	Broadcast         = P02Kind(0x01)
 	BroadcastToSector = P02Kind(0x02)
+	RequestSnapshot   = P02Kind(0x03)
+	SnapshotData      = P02Kind(0x04)
 )
 
 func (k P02Kind) String() string {
@@ -22,6 +24,10 @@ func (k P02Kind) String() string {
 		return "broadcast"
 	case BroadcastToSector:
 		return "broadcast_to_sector"
+	case RequestSnapshot:
+		return "request_snapshot"
+	case SnapshotData:
+		return "snapshot_data"
 	}
 	return "unknown"
 }
@@ -105,6 +111,75 @@ func processProtocol02(message UDPMessage, buf *bytes.Buffer) (fatalErr error) {
 		networkMetrics.SentBytes(len(rspBytes), kind.String(), clientGroup, client)
 		rsp = nil
 
+		break
+	case RequestSnapshot:
+		// client requests a full-state snapshot resync
+		// find the "host" client (lowest active index) in the group:
+		hostIdx := -1
+		hostAddr := &client.UDPAddr
+		for i := range clientGroup.Clients {
+			c := &clientGroup.Clients[i]
+			if !c.IsAlive {
+				continue
+			}
+			if c == client {
+				continue
+			}
+			if hostIdx == -1 || int(c.Index) < hostIdx {
+				hostIdx = int(c.Index)
+				hostAddr = &c.UDPAddr
+			}
+		}
+		if hostIdx == -1 {
+			// no other players to request from
+			break
+		}
+
+		// forward the request to the host, include requesting client's index:
+		rsp := make02Packet(groupBuf, kind)
+		requestingIdx := uint16(ci)
+		binary.Write(rsp, binary.LittleEndian, &requestingIdx)
+		payload := buf.Bytes()
+		rsp.Write(payload)
+
+		rspBytes := rsp.Bytes()
+		_, fatalErr = conn.WriteToUDP(rspBytes, hostAddr)
+		if fatalErr != nil {
+			return
+		}
+		networkMetrics.SentBytes(len(rspBytes), kind.String(), clientGroup, client)
+		rsp = nil
+		break
+	case SnapshotData:
+		// host is responding with snapshot data to a specific client
+		// read target client index from payload:
+		var targetIdx uint16
+		if err := binary.Read(buf, binary.LittleEndian, &targetIdx); err != nil {
+			log.Print(err)
+			break
+		}
+		payload := buf.Bytes()
+
+		// find target client and unicast the snapshot:
+		for i := range clientGroup.Clients {
+			c := &clientGroup.Clients[i]
+			if !c.IsAlive || int(c.Index) != int(targetIdx) {
+				continue
+			}
+			rsp := make02Packet(groupBuf, kind)
+			index := uint16(ci)
+			binary.Write(rsp, binary.LittleEndian, &index)
+			rsp.Write(payload)
+
+			rspBytes := rsp.Bytes()
+			_, fatalErr = conn.WriteToUDP(rspBytes, &c.UDPAddr)
+			if fatalErr != nil {
+				return
+			}
+			networkMetrics.SentBytes(len(rspBytes), kind.String(), clientGroup, client)
+			rsp = nil
+			break
+		}
 		break
 	case Broadcast:
 		// broadcast message received to all other clients:
