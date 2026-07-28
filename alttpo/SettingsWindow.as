@@ -53,6 +53,9 @@ class SettingsWindow {
   private GUI::Button @btnAdvanced;
   private GUI::Button @btnPresetDefault;
   private GUI::Button @btnPresetMultiworld;
+  private GUI::Button @btnRequestResync;
+
+  bool requestResync = false;
 
   bool started;
 
@@ -195,6 +198,9 @@ class SettingsWindow {
   private bool syncProgress;
   bool SyncProgress { get { return syncProgress; } }
 
+  bool SyncEnemies = false;
+  bool SyncEnemyDebug = false;
+
   private bool discordEnable;
   bool DiscordEnable {
     get { return discordEnable; }
@@ -301,6 +307,9 @@ class SettingsWindow {
     syncCrystals = doc["feature/syncCrystals"].booleanOr(true);
     syncProgress = doc["feature/syncProgress"].booleanOr(true);
 
+    SyncEnemies = doc["feature/SyncEnemies"].booleanOr(false);
+    SyncEnemyDebug = doc["feature/SyncEnemyDebug"].booleanOr(false);
+
     discordEnable = doc["feature/discordEnable"].booleanOr(false);
     discordPrivate = doc["feature/discordPrivate"].booleanOr(false);
 
@@ -353,6 +362,9 @@ class SettingsWindow {
     doc.create("feature/syncDungeonItems").value = fmtBool(syncDungeonItems);
     doc.create("feature/syncCrystals").value = fmtBool(syncCrystals);
     doc.create("feature/syncProgress").value = fmtBool(syncProgress);
+
+    doc.create("feature/SyncEnemies").value = fmtBool(SyncEnemies);
+    doc.create("feature/SyncEnemyDebug").value = fmtBool(SyncEnemyDebug);
 
     doc.create("feature/discordEnable").value = fmtBool(discordEnable);
     doc.create("feature/discordPrivate").value = fmtBool(discordPrivate);
@@ -1168,6 +1180,30 @@ class SettingsWindow {
       vl.append(hz, GUI::Size(-1, 0));
 
       auto @lbl = GUI::Label();
+      lbl.text = "Enemy Sync:";
+      hz.append(lbl, GUI::Size(sx100, 0));
+    }
+
+    {
+      auto @hz = GUI::HorizontalLayout();
+      vl.append(hz, GUI::Size(-1, 0));
+
+      GUI::CheckBox@ c = GUI::CheckBox(SyncEnemies);
+      c.text = "Sync Enemies & Bosses";
+      c.onToggle = function(GUI::CheckBox@ cb) { SyncEnemies = cb.marked; };
+      hz.append(c, GUI::Size(-1, 0));
+
+      @c = GUI::CheckBox(SyncEnemyDebug);
+      c.text = "Enemy Debug Window";
+      c.onToggle = function(GUI::CheckBox@ cb) { SyncEnemyDebug = cb.marked; };
+      hz.append(c, GUI::Size(-1, 0));
+    }
+
+    {
+      auto @hz = GUI::HorizontalLayout();
+      vl.append(hz, GUI::Size(-1, 0));
+
+      auto @lbl = GUI::Label();
       lbl.text = "PvP:";
       hz.append(lbl, GUI::Size(sx100, 0));
 
@@ -1277,6 +1313,25 @@ class SettingsWindow {
       vl.append(hz, GUI::Size(-1, 0));
 
       auto @lbl = GUI::Label();
+      lbl.text = "Diagnostics:";
+      hz.append(lbl, GUI::Size(sx150, 0));
+
+      @hz = GUI::HorizontalLayout();
+      vl.append(hz, GUI::Size(-1, 0));
+
+      @btnRequestResync = GUI::Button();
+      btnRequestResync.text = "Request Resync";
+      btnRequestResync.toolTip =
+        "Send a request to the current host for a full game state snapshot. Useful for late joiners or to recover from a desync.";
+      btnRequestResync.onActivate(@GUI::Callback(btnRequestResyncClicked));
+      hz.append(btnRequestResync, GUI::Size(-1, -1));
+    }
+
+    {
+      auto @hz = GUI::HorizontalLayout();
+      vl.append(hz, GUI::Size(-1, 0));
+
+      auto @lbl = GUI::Label();
       lbl.text = "Presets:";
       hz.append(lbl, GUI::Size(sx150, 0));
 
@@ -1300,6 +1355,12 @@ class SettingsWindow {
       btnPresetMultiworld.onActivate(@GUI::Callback(btnPresetMultiworldClicked));
       hz.append(btnPresetMultiworld, GUI::Size(-1, -1));
     }
+  }
+
+  // callback:
+  private void btnRequestResyncClicked() {
+    message("Request Resync button clicked");
+    requestResync = true;
   }
 
   // callback:

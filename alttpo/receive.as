@@ -82,6 +82,39 @@ void receive() {
         // kind == 0x82 should be response to another player's broadcast-to-sector.
         index = uint16(r[c++]) | (uint16(r[c++]) << 8);
         process_message(index, r, c);
+      } else if (kind == 0x83) {
+        // kind == 0x83 is a Snapshot Request forwarded by the server to the host.
+        // The requesting player's index follows:
+        index = uint16(r[c++]) | (uint16(r[c++]) << 8);
+        // Respond with a full state snapshot:
+        {
+          auto @env = local.create_envelope(0x04);
+          // Write the requester's index so the server knows who to unicast to:
+          env.write_u16(uint16(index));
+          // Write the full state snapshot data:
+          local.serialize_full_state(env);
+          // Send it:
+          uint p = 0;
+          p = local.send_packet(env, p);
+        }
+      } else if (kind == 0x84) {
+        // kind == 0x84 is a SnapshotData unicast from the server.
+        // Read source index (host's index from server wrapper):
+        index = uint16(r[c++]) | (uint16(r[c++]) << 8);
+        // Parse past script protocol header to find target_index:
+        uint8 prot = r[c++];
+        if (prot == script_protocol) {
+          r[c++]; // team - skip
+          r[c++]; r[c++]; // frame - skip
+          uint16 target_index = uint16(r[c++]) | (uint16(r[c++]) << 8);
+          if (int(target_index) == local.index) {
+            // c points at 0x12 packet type; skip it:
+            c++; // skip packetType 0x12
+            // Deserialize full state into local:
+            local.deserialize_full_state(r, c);
+            local.notify("Resync complete!");
+          }
+        }
       } else {
         // unrecognized message kind, skip it:
         continue;

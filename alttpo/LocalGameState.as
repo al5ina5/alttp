@@ -73,6 +73,18 @@ class LocalGameState : GameState {
   array<SyncableUnderworldRoom@> rooms(0x128);
   array<Sprite@> sprs(0x80);
 
+  array<uint16> chr_uniqtile_absidx(0x200);
+  array<int>   lttp_uniqtile_new;
+  array<int>     sm_uniqtile_new;
+
+  void uniqtile_new_insertLast(uint16 absidx) {
+    if (absidx < 0x1000) {
+      lttp_uniqtile_new.insertLast(absidx);
+    } else if (absidx < 0x2000) {
+      sm_uniqtile_new.insertLast(absidx - 0x1000);
+    }
+  }
+
   Notify@ notify;
   NotifyItemReceived@ itemReceivedDelegate;
   SerializeSRAMDelegate@ serializeSramDelegate;
@@ -93,6 +105,12 @@ class LocalGameState : GameState {
     @this.notify = Notify(@notificationSystem.notify);
     @this.itemReceivedDelegate = NotifyItemReceived(@this.collectNotifications);
     @this.serializeSramDelegate = SerializeSRAMDelegate(@this.serialize_sram);
+
+    // at most 512 new tiles to capture per frame:
+    lttp_uniqtile_new.reserve(0x200);
+    lttp_uniqtile_new.resize(0);
+      sm_uniqtile_new.reserve(0x200);
+      sm_uniqtile_new.resize(0);
 
     // SRAM [$000..$24f] underworld rooms:
     // create syncable item for each underworld room (word; size=2) using bitwise OR operations (type=2) to accumulate latest state:
@@ -184,6 +202,11 @@ class LocalGameState : GameState {
     gotShield = 0;
 
     animation_timer = 0;
+
+    lttp_uniqtile_new.reserve(0x200);
+    lttp_uniqtile_new.resize(0);
+      sm_uniqtile_new.reserve(0x200);
+      sm_uniqtile_new.resize(0);
   }
 
   bool registered = false;
@@ -1208,6 +1231,20 @@ class LocalGameState : GameState {
     r.write_u32(checksum);
   }
 
+  void serialize_full_state(array<uint8> &r) {
+    r.write_u8(uint8(0x12));
+
+    uint16 sram_count = 0x500;
+    r.write_u16(sram_count);
+    for (uint i = 0; i < sram_count; i++) {
+      r.write_u8(sram[i]);
+    }
+
+    r.write_u8(module);
+    r.write_u16(x);
+    r.write_u16(y);
+  }
+
   void serialize_sfx(array<uint8> &r) {
     r.write_u8(uint8(0x02));
 
@@ -1643,6 +1680,13 @@ class LocalGameState : GameState {
       return;
     }
     last_sent = timestamp_now;
+
+    // check if player requested a resync:
+    if (settings.requestResync) {
+      settings.requestResync = false;
+      auto @env = create_envelope(0x03);
+      p = send_packet(env, p);
+    }
 
     // send main packet:
     {

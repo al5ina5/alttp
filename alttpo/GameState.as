@@ -526,6 +526,7 @@ class GameState {
         case 0x0F: c = deserialize_sm_location(r, c); break;
         case 0x10: c = deserialize_sm_sprite(r, c); break;
         case 0x11: c = deserialize_checksum(r, c); break;
+        case 0x12: c = deserialize_full_state(r, c); break;
         default:
           message("unknown packet type " + fmtHex(packetType, 2) + " at offs " + fmtHex(c, 3));
           break;
@@ -919,6 +920,19 @@ class GameState {
       dropped_frames++;
       message("DESYNC DETECTED for player " + name + " (checksum mismatch)");
     }
+    return c;
+  }
+
+  int deserialize_full_state(array<uint8> r, int c) {
+    // read sram[0..0x4FF]:
+    uint16 sram_count = uint16(r[c++]) | (uint16(r[c++]) << 8);
+    for (uint i = 0; i < sram_count && i < 0x500; i++) {
+      sram[i] = r[c++];
+    }
+    module = r[c++];
+    x = uint16(r[c++]) | (uint16(r[c++]) << 8);
+    y = uint16(r[c++]) | (uint16(r[c++]) << 8);
+    calc_hitbox();
     return c;
   }
 
