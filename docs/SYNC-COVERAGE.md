@@ -94,11 +94,11 @@ This document tracks what state is currently synchronized in ALttPO multiplayer.
 
 ### P2 - POLISH
 
-| Address | Item | Reason |
-|---------|------|--------|
-| N/A | **Enemies/Bosses** | Not synced - boss kills need to propagate |
-| N/A | **Object sync** | Bombs, arrows visible to other players |
-| N/A | **NPC flags** | Some event flags not synced |
+| Address | Item | Reason | Upstream | Our fork |
+|---------|------|--------|----------|---------|
+| N/A | **Enemies/Bosses** | Not synced - boss kills need to propagate | ❌ | ❌ Planned |
+| N/A | **Object sync** | Bombs, arrows visible to other players | ❌ Disabled | ✅ **Enabled** |
+| N/A | **NPC flags** | Some event flags not synced | ❌ | ❌ Planned |
 
 ---
 

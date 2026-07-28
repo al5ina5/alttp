@@ -17,13 +17,13 @@ bool debugRTDScompress = false;
 bool debugRTDSapply = false;
 
 bool enableMap = true;
-bool enablePlayerList = false;
+bool enablePlayerList = true;
 bool enableBgMusic = true;
 
 bool enableRenderToExtra = true;
 
 // sync control:
-bool enableObjectSync = false;
+bool enableObjectSync = true;
 
 void init() {
   //message("init()");

@@ -19,10 +19,10 @@ ALttPO script integration for [bsnes-as](//github.com/alttpo/bsnes-as).
 | Health capacity sync | ✅ | ✅ |
 | **Frame sequence numbers** | ❌ | ✅ **uint16 frame tracking** |
 | **Desync detection (checksums)** | ❌ | ✅ **FNV-1a state hash** |
-| **Snapshot/resync protocol** | ❌ | ✅ **Server relay implemented** |
+| **Snapshot/resync protocol** | ❌ | ✅ **Server relay done, client WIP** |
 | **VRAM attribute byte** | ❌ Bug | ✅ **Fixed** |
+| **Object sync (bombs, arrows visible)** | ❌ Disabled | ✅ **Enabled** |
 | Enemy/boss sync | ❌ | ❌ Coming next |
-| Object sync (bombs, arrows visible) | ❌ Disabled | ❌ Planned |
 | Underworld tile sync (pots, star tiles) | ❌ | ❌ Report + VRAM fix done |
 | Unified game launcher | ❌ | ❌ Future roadmap |
 
