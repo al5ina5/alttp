@@ -101,6 +101,17 @@ class LocalGameState : GameState {
 
   uint16 animation_timer;
 
+  // enemy sync fields:
+  bool enemySyncEnabled = false;
+  array<uint8> overlordU8Data(overlord_u8_ptrs.length() * 0x08);
+  array<uint8> overlordU16Data(overlord_u16_ptrs.length() * 0x10);
+  array<uint8> enemyData(enemy_data_size);
+  array<uint8> enemySegments(enemy_segments_data_size);
+
+  // basic state for enemy sync:
+  bool in_dungeon;
+  uint8 location;
+
   LocalGameState() {
     @this.notify = Notify(@notificationSystem.notify);
     @this.itemReceivedDelegate = NotifyItemReceived(@this.collectNotifications);
@@ -119,6 +130,7 @@ class LocalGameState : GameState {
       @rooms[a] = @SyncableUnderworldRoom(a, 0xFFFF);
     }
     set_room_masks(settings.SyncChests);
+    enemySyncEnabled = settings.SyncLttpEnemies;
     // desync swamp inner watergate at $7EF06A (supertile $35)
     rooms[0x035].mask = 0xFF7F;
 
@@ -1406,6 +1418,152 @@ class LocalGameState : GameState {
     r.write_u8(z3_clear);
   }
 
+  // ===== ENEMY SYNC METHODS =====
+
+  // fetch basic state for enemy sync (in_dungeon, location)
+  void fetch_basics() {
+    // $7E:00A3 = dungeon index (00=Hyrule, 01=Escape, 02=Castle Tower, 03=EP, 04=DP, 05=ToH, 06=MM, 07=TR, 08=TH, 09=IP, 0A=Swamp, 0B=Skull, 0C=Ice, 0D=MM, 0E=TR, 0F=TH)
+    // or check $7E:00DD (overworld indicators)
+    uint8 area = bus::read_u8(0x7E00A3);
+    in_dungeon = (area >= 0x01 && area <= 0x0F);
+    location = area;
+  }
+
+  // fetch overlord (boss) data from WRAM
+  void fetch_overlord_data() {
+    // overlord pointer table at $7E0B00 (9 entries)
+    for (uint i = 0; i < overlord_u8_ptrs.length(); i++) {
+      uint16 addr = overlord_u8_ptrs[i];
+      for (uint j = 0; j < 0x08; j++) {
+        overlordU8Data[i * 0x08 + j] = bus::read_u8(addr + j);
+      }
+    }
+    // overlord 16-bit data
+    for (uint i = 0; i < overlord_u16_ptrs.length(); i++) {
+      uint16 addr = overlord_u16_ptrs[i];
+      overlordU16Data[i * 0x10 + 0] = bus::read_u8(addr + 0);
+      overlordU16Data[i * 0x10 + 1] = bus::read_u8(addr + 1);
+      overlordU16Data[i * 0x10 + 2] = bus::read_u8(addr + 2);
+      overlordU16Data[i * 0x10 + 3] = bus::read_u8(addr + 3);
+      overlordU16Data[i * 0x10 + 4] = bus::read_u8(addr + 4);
+      overlordU16Data[i * 0x10 + 5] = bus::read_u8(addr + 5);
+      overlordU16Data[i * 0x10 + 6] = bus::read_u8(addr + 6);
+      overlordU16Data[i * 0x10 + 7] = bus::read_u8(addr + 7);
+      overlordU16Data[i * 0x10 + 8] = bus::read_u8(addr + 8);
+      overlordU16Data[i * 0x10 + 9] = bus::read_u8(addr + 9);
+      overlordU16Data[i * 0x10 + 10] = bus::read_u8(addr + 10);
+      overlordU16Data[i * 0x10 + 11] = bus::read_u8(addr + 11);
+      overlordU16Data[i * 0x10 + 12] = bus::read_u8(addr + 12);
+      overlordU16Data[i * 0x10 + 13] = bus::read_u8(addr + 13);
+      overlordU16Data[i * 0x10 + 14] = bus::read_u8(addr + 14);
+      overlordU16Data[i * 0x10 + 15] = bus::read_u8(addr + 15);
+    }
+  }
+
+  // apply remote overlord data to local WRAM
+  void update_overlord_data() {
+    // overlord 8-bit data
+    for (uint i = 0; i < overlord_u8_ptrs.length(); i++) {
+      uint16 addr = overlord_u8_ptrs[i];
+      for (uint j = 0; j < 0x08; j++) {
+        bus::write_u8(addr + j, overlordU8Data[i * 0x08 + j]);
+      }
+    }
+    // overlord 16-bit data
+    for (uint i = 0; i < overlord_u16_ptrs.length(); i++) {
+      uint16 addr = overlord_u16_ptrs[i];
+      for (uint j = 0; j < 0x10; j++) {
+        bus::write_u8(addr + j, overlordU16Data[i * 0x10 + j]);
+      }
+    }
+  }
+
+  // fetch enemy data from WRAM
+  void fetch_enemy_data() {
+    // enemy pointer table at $7E0F78
+    for (uint i = 0; i < 0x10; i++) {
+      uint16 ptr_addr = 0x0F78 + i * 2;
+      uint16 ptr = bus::read_u16(ptr_addr);
+      if (ptr == 0) continue;
+      
+      // read 0x20 bytes per enemy
+      for (uint j = 0; j < 0x20 && (ptr + j) < 0x8000; j++) {
+        enemyData[i * 0x20 + j] = bus::read_u8(ptr + j);
+      }
+    }
+    // fetch segment data
+    for (uint i = 0; i < enemy_segments_data_ptrs.length(); i++) {
+      uint16 addr = enemy_segments_data_ptrs[i];
+      for (uint j = 0; j < 0x80; j++) {
+        enemySegments[i * 0x80 + j] = bus::read_u8(addr + j);
+      }
+    }
+  }
+
+  // send enemy data to other players
+  void send_enemy_data() {
+    if (!enemySyncEnabled) return;
+    
+    // serialize overlord u8
+    {
+      auto @env = create_envelope();
+      r.write_u8(uint8(0x13)); // packet type
+      for (uint i = 0; i < overlordU8Data.length(); i++) {
+        r.write_u8(overlordU8Data[i]);
+      }
+      p = send_packet(env, p);
+    }
+    // serialize overlord u16
+    {
+      auto @env = create_envelope();
+      r.write_u8(uint8(0x14)); // packet type
+      for (uint i = 0; i < overlordU16Data.length(); i++) {
+        r.write_u8(overlordU16Data[i]);
+      }
+      p = send_packet(env, p);
+    }
+    // serialize enemy data
+    {
+      auto @env = create_envelope();
+      r.write_u8(uint8(0x15)); // packet type
+      for (uint i = 0; i < enemyData.length(); i++) {
+        r.write_u8(enemyData[i]);
+      }
+      p = send_packet(env, p);
+    }
+    // serialize enemy segments
+    {
+      auto @env = create_envelope();
+      r.write_u8(uint8(0x16)); // packet type
+      for (uint i = 0; i < enemySegments.length(); i++) {
+        r.write_u8(enemySegments[i]);
+      }
+      p = send_packet(env, p);
+    }
+  }
+
+  // apply remote enemy data to local WRAM
+  void update_enemy_data() {
+    // enemy pointer table at $7E0F78
+    for (uint i = 0; i < 0x10; i++) {
+      uint16 ptr_addr = 0x0F78 + i * 2;
+      uint16 ptr = bus::read_u16(ptr_addr);
+      if (ptr == 0) continue;
+      
+      // write 0x20 bytes per enemy
+      for (uint j = 0; j < 0x20 && (ptr + j) < 0x8000; j++) {
+        bus::write_u8(ptr + j, enemyData[i * 0x20 + j]);
+      }
+    }
+    // apply segment data
+    for (uint i = 0; i < enemy_segments_data_ptrs.length(); i++) {
+      uint16 addr = enemy_segments_data_ptrs[i];
+      for (uint j = 0; j < 0x80; j++) {
+        bus::write_u8(addr + j, enemySegments[i * 0x80 + j]);
+      }
+    }
+  }
+
   uint send_sprites(uint p) {
     uint len = sprites.length();
 
@@ -1765,6 +1923,13 @@ class LocalGameState : GameState {
         auto @envelope = create_envelope();
         serialize_checksum(envelope);
         p = send_packet(envelope, p);
+      }
+
+      // send enemy sync every 8 frames (overlord + enemies + segments):
+      if (settings.SyncLttpEnemies && (frame & 7) == 0) {
+        fetch_overlord_data();
+        fetch_enemy_data();
+        send_enemy_data();
       }
 
       if (rom.is_smz3()) {
