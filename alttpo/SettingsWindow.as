@@ -198,7 +198,7 @@ class SettingsWindow {
   private bool syncProgress;
   bool SyncProgress { get { return syncProgress; } }
 
-  bool SyncEnemies = false;
+  bool SyncLttpEnemies = false;
   bool SyncEnemyDebug = false;
 
   private bool discordEnable;
@@ -307,7 +307,7 @@ class SettingsWindow {
     syncCrystals = doc["feature/syncCrystals"].booleanOr(true);
     syncProgress = doc["feature/syncProgress"].booleanOr(true);
 
-    SyncEnemies = doc["feature/SyncEnemies"].booleanOr(false);
+    SyncLttpEnemies = doc["feature/SyncLttpEnemies"].booleanOr(false);
     SyncEnemyDebug = doc["feature/SyncEnemyDebug"].booleanOr(false);
 
     discordEnable = doc["feature/discordEnable"].booleanOr(false);
@@ -363,7 +363,7 @@ class SettingsWindow {
     doc.create("feature/syncCrystals").value = fmtBool(syncCrystals);
     doc.create("feature/syncProgress").value = fmtBool(syncProgress);
 
-    doc.create("feature/SyncEnemies").value = fmtBool(SyncEnemies);
+    doc.create("feature/SyncLttpEnemies").value = fmtBool(SyncLttpEnemies);
     doc.create("feature/SyncEnemyDebug").value = fmtBool(SyncEnemyDebug);
 
     doc.create("feature/discordEnable").value = fmtBool(discordEnable);
@@ -1188,9 +1188,9 @@ class SettingsWindow {
       auto @hz = GUI::HorizontalLayout();
       vl.append(hz, GUI::Size(-1, 0));
 
-      GUI::CheckBox@ c = GUI::CheckBox(SyncEnemies);
-      c.text = "Sync Enemies & Bosses";
-      c.onToggle = function(GUI::CheckBox@ cb) { SyncEnemies = cb.marked; };
+      GUI::CheckBox@ c = GUI::CheckBox(SyncLttpEnemies);
+        c.text = "Sync Enemies & Bosses";
+        c.onToggle = function(GUI::CheckBox@ cb) { SyncLttpEnemies = cb.marked; };
       hz.append(c, GUI::Size(-1, 0));
 
       @c = GUI::CheckBox(SyncEnemyDebug);

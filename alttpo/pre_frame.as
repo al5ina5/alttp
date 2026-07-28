@@ -111,6 +111,32 @@ void on_main_alttp(uint32 pc) {
   }
 }
 
+// This function is called when alttp's Sprite_Main routine begins:
+void on_sprite_main_alttp(uint32 pc) {
+  if (settings.started && (sock !is null)) {
+    // receive network updates from remote players:
+    receive();
+  }
+
+  if (settings.SyncLttpEnemies) {
+    local.fetch_basics(); // for in_dungeon and location checks
+    local.fetch_enemy_data(); // to not overwrite picked up sprites
+
+    local.update_overlord_data();
+    local.update_enemy_data();
+  }
+}
+
+// This function is called when alttp's Sprite_Main routine ends (on RTL):
+void on_sprite_main_end_alttp(uint32 pc) {
+  if (settings.SyncLttpEnemies) {
+    local.fetch_overlord_data();
+    local.fetch_enemy_data();
+
+    local.send_enemy_data();
+  }
+}
+
 uint8 sm_state = 0;
 
 bool sm_is_safe_state() {

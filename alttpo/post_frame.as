@@ -88,8 +88,8 @@ void post_frame() {
     sprites.update();
   }
 
-  if (gameSpriteWindow !is null) {
-    gameSpriteWindow.update();
+  if (enemyWindow !is null) {
+    enemyWindow.update();
   }
 
   if (memoryWindow !is null) {

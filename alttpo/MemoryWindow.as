@@ -23,6 +23,7 @@ class MemoryWindow {
 
   GUI::Color gridColor = GUI::Color( 80,  80,  80);
   GUI::Color addrColor = GUI::Color(220, 220,   0);
+  GUI::Color zeroColor = GUI::Color( 80,  80,  80);
   GUI::Color dataColor = GUI::Color(160, 160, 160);
   GUI::Color diffColor = GUI::Color(255,  20,  20);
 
