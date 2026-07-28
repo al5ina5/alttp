@@ -793,7 +793,7 @@ class SettingsWindow {
     syncOverworld = true;
     syncItems = true;
     syncPendants = true;
-    syncSmallKeys = false;
+    syncSmallKeys = true;
     syncTilemap = true;
     syncChests = true;
     syncHearts = true;
