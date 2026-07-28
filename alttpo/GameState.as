@@ -1,5 +1,5 @@
 
-const uint8 script_protocol = 0x13;
+const uint8 script_protocol = 0x14;
 
 // for message rate limiting to prevent noise
 uint8 rate_limit = 0x00;
@@ -25,6 +25,9 @@ class GameState {
   int ttl;        // time to live for last update packet
   int index = -1; // player index in server's array (local is always -1)
   uint8 _team = 0; // team number to sync with
+
+  uint16 last_received_frame = 0;
+  uint16 dropped_frames = 0;
 
   // graphics data for current frame:
   array<Sprite@> sprites;
@@ -92,7 +95,7 @@ class GameState {
   uint16 objects_index_source;
 
   // values copied from RAM:
-  uint8  frame;
+  uint16 frame;
   uint32 actual_location;
   uint32 last_actual_location;
   uint32 location;
@@ -471,15 +474,19 @@ class GameState {
       team = t;
     }
 
-    auto frame = r[c++];
-    //message("frame = " + fmtHex(frame, 2));
-    if (frame < this.frame && this.frame < 0xff) {
-      // stale data:
-      // TODO fix check when wrapping around 0xFF to 0x00
-      //message("stale frame " + fmtHex(frame, 2) + " vs " + fmtHex(this.frame, 2));
+    auto frame = uint16(r[c++]) | (uint16(r[c++]) << 8);
+    // properly handle uint16 sequence number wrap-around:
+    uint16 seqDiff = uint16(frame - this.frame);
+    if (seqDiff > 0x8000) {
+      // old/stale packet (wrapped around)
       this.frame = frame;
       return false;
     }
+    // detect dropped frames:
+    if (this.last_received_frame != 0 && frame != this.last_received_frame) {
+      dropped_frames += uint16(frame - this.last_received_frame - 1);
+    }
+    this.last_received_frame = frame;
     this.frame = frame;
 
     int maxc = int(r.length());

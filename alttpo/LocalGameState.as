@@ -1589,8 +1589,8 @@ class LocalGameState : GameState {
 
     // protocol starts with team number:
     envelope.write_u8(team);
-    // frame number to correlate separate packets together:
-    envelope.write_u8(frame);
+    // frame sequence number to detect dropped/out-of-order packets:
+    envelope.write_u16(frame);
 
     return envelope;
   }
