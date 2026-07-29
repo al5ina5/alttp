@@ -103,6 +103,7 @@ void receive() {
           // c points at 0x18 packet type; skip it:
           c++; // skip packetType 0x18
           local.deserialize_full_state(r, c);
+          local.apply_full_state_to_bus();
           local.notify("Resync complete!");
         }
       } else {

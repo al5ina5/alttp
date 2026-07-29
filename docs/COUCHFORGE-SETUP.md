@@ -32,13 +32,8 @@ COUCHFORGE_ALTTP_SERVER=10.0.0.55                                  # join
 
 Port markers: **ALttPO (Host)** / **ALttPO (Join)** only (Archipelago multiworld removed).
 
-## Verify
-```bash
-# aio
-~/.local/bin/couchforge-port-adapter alttp-host
-# kiosk
-~/.local/bin/couchforge-port-adapter alttp-join
-```
-Logs should show `Kiosk joined` / `AIO joined`. No "Join a Game" window.
-Input: DualShock 4 (`0x054c09cc`) via `udev` + keyboard fallback.
-Display: adapter forces `1920x1080` when xrandr is stuck on 8x8/320x200.
+## Snapshot / Request Resync
+The **Request Resync** button needs our forked `alttp-server` (kinds `0x03`/`0x04`).
+Public `alttp.online` will ignore those — enemy/item sync still works over the relay;
+only the manual snapshot button needs a local server on aio.
+

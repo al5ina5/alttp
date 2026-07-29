@@ -1,7 +1,7 @@
 
-// Bumped for uint16 frame sequence (was 0x17 on stock esync with uint8 frame).
-// Nested payload kinds 0x17/0x18 = checksum / full_state (separate from this byte).
-const uint8 script_protocol = 0x18;
+// Match stock esync. Nested payload kinds 0x17/0x18 = checksum / full_state
+// (separate from this protocol byte). Frame is already uint16 on the wire in esync.
+const uint8 script_protocol = 0x17;
 
 // for message rate limiting to prevent noise
 uint8 rate_limit = 0x00;
@@ -718,8 +718,7 @@ class GameState {
     // properly handle uint16 sequence number wrap-around:
     uint16 seqDiff = uint16(frame - this.frame);
     if (seqDiff > 0x8000) {
-      // old/stale packet (wrapped around)
-      this.frame = frame;
+      // old/stale packet — do not lower the high-water mark
       return false;
     }
     // detect dropped frames:
@@ -1284,17 +1283,14 @@ class GameState {
   }
 
   uint32 compute_checksum() {
-    // hash sram[0..0x4FF], module, x, y using fnv1a()
+    // Hash stable progress only (SRAM + module). Do not include x/y — those
+    // change every frame and false-trigger "DESYNC DETECTED" on peer compare.
     array<uint8> buf;
-    buf.reserve(0x500 + 5);
+    buf.reserve(0x500 + 1);
     for (uint i = 0; i < 0x500; i++) {
       buf.insertLast(sram[i]);
     }
     buf.insertLast(module);
-    buf.insertLast(uint8(x & 0xFF));
-    buf.insertLast(uint8((x >> 8) & 0xFF));
-    buf.insertLast(uint8(y & 0xFF));
-    buf.insertLast(uint8((y >> 8) & 0xFF));
     return fnv1a(buf);
   }
 
@@ -1319,6 +1315,14 @@ class GameState {
     y = uint16(r[c++]) | (uint16(r[c++]) << 8);
     calc_hitbox();
     return c;
+  }
+
+  // Push snapshot SRAM into real game memory so the next fetch() cannot wipe it.
+  void apply_full_state_to_bus() {
+    if (get_in_sm()) {
+      return;
+    }
+    bus::write_block_u8(0x7EF000, 0, 0x500, sram);
   }
 
   void renderToPPU(int dx, int dy) {

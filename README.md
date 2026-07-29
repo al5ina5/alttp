@@ -17,9 +17,9 @@ ALttPO script integration for [bsnes-as](//github.com/alttpo/bsnes-as).
 | Small keys per dungeon | ⚠️ Off by default | ✅ **Enabled by default** |
 | Bottle contents | ✅ | ✅ |
 | Health capacity sync | ✅ | ✅ |
-| **Frame sequence numbers** | ❌ uint8 | ✅ **uint16** (`script_protocol` 0x18) |
+| **Frame sequence numbers** | ❌ uint8 wrap | ✅ **uint16** (esync `script_protocol` 0x17) |
 | **Desync detection (checksums)** | ❌ | ✅ **FNV-1a** packet 0x17 |
-| **Snapshot/resync protocol** | ❌ | ✅ **RequestSnapshot 0x03 / SnapshotData 0x04** + packet 0x18 |
+| **Snapshot/resync protocol** | ❌ | ✅ **RequestSnapshot 0x03 / SnapshotData 0x04** + packet 0x18 (needs our `alttp-server`; public `alttp.online` ignores it) |
 | **VRAM attribute byte** | ❌ Bug | ✅ **Fixed** |
 | Enemy/boss sync | ❌ | ✅ **DONE (from esync)** |
 | Underworld tile sync (pots, star tiles) | ⚠️ Partial | ✅ VRAM attr fix; pots/stars still limited |
