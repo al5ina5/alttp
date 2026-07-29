@@ -198,7 +198,7 @@ class SettingsWindow {
   private bool syncProgress;
   bool SyncProgress { get { return syncProgress; } }
 
-  bool SyncLttpEnemies = false;
+  bool SyncLttpEnemies = true;
   bool SyncEnemyDebug = false;
 
   private bool discordEnable;
@@ -307,7 +307,7 @@ class SettingsWindow {
     syncCrystals = doc["feature/syncCrystals"].booleanOr(true);
     syncProgress = doc["feature/syncProgress"].booleanOr(true);
 
-    SyncLttpEnemies = doc["feature/SyncLttpEnemies"].booleanOr(false);
+    SyncLttpEnemies = doc["feature/SyncLttpEnemies"].booleanOr(true);
     SyncEnemyDebug = doc["feature/SyncEnemyDebug"].booleanOr(false);
 
     discordEnable = doc["feature/discordEnable"].booleanOr(false);
