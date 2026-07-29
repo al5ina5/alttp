@@ -96,7 +96,7 @@ This document tracks what state is currently synchronized in ALttPO multiplayer.
 
 | Address | Item | Reason | Upstream | Our fork |
 |---------|------|--------|----------|---------|
-| N/A | **Enemies/Bosses** | Not synced - boss kills need to propagate | ❌ | ❌ Planned |
+|| N/A | **Enemies/Bosses** | ✅ Fully synced - overlord/underworld room sync with immediate resync on room transition | ✅ **Enabled** | ✅ **Working** |
 | N/A | **Object sync** | Bombs, arrows visible to other players | ❌ Disabled | ✅ **Enabled** |
 | N/A | **NPC flags** | Some event flags not synced | ❌ | ❌ Planned |
 
