@@ -335,6 +335,7 @@ class LocalGameState : GameState {
       default:
         return true;
     }
+    return true;
   }
 
   void fetch_module() {
