@@ -96,6 +96,7 @@ class PlayersWindow {
       }
     }
     vl.resize();
+    window.visible = true;
   }
 
   PlayersWindow() {
@@ -105,7 +106,6 @@ class PlayersWindow {
     window.dismissable = false;
     window.backgroundColor = GUI::Color(28, 28, 28);
     window.font = GUI::Font("{sans}", 12);
-    window.visible = true;
 
     update();
   }

@@ -101,18 +101,6 @@ class LocalGameState : GameState {
 
   uint16 animation_timer;
 
-  // enemy sync fields:
-  bool enemySyncEnabled = false;
-  array<uint8> overlordU8Data(overlord_u8_ptrs.length() * 0x08);
-  array<uint8> overlordU16Data(overlord_u16_ptrs.length() * 0x10);
-  array<uint8> enemyData(enemy_data_size);
-  array<uint8> enemySegments(enemy_segments_data_size);
-
-  // basic state for enemy sync:
-  bool in_dungeon;
-  uint8 location;
-  bool forceSramSend = false;
-
   LocalGameState() {
     @this.notify = Notify(@notificationSystem.notify);
     @this.itemReceivedDelegate = NotifyItemReceived(@this.collectNotifications);
@@ -131,7 +119,6 @@ class LocalGameState : GameState {
       @rooms[a] = @SyncableUnderworldRoom(a, 0xFFFF);
     }
     set_room_masks(settings.SyncChests);
-    enemySyncEnabled = settings.SyncLttpEnemies;
     // desync swamp inner watergate at $7EF06A (supertile $35)
     rooms[0x035].mask = 0xFF7F;
 
@@ -552,9 +539,6 @@ class LocalGameState : GameState {
       // clear out list of room changes if location changed:
       if (last_location != location) {
         //message("room from 0x" + fmtHex(last_location, 6) + " to 0x" + fmtHex(location, 6));
-
-        // force immediate SRAM sync on room transition
-        forceSramSend = true;
 
         // disown any of our torches:
         for (uint t = 0; t < 0x10; t++) {
@@ -1422,18 +1406,7 @@ class LocalGameState : GameState {
     r.write_u8(z3_clear);
   }
 
-  // ===== ENEMY SYNC METHODS =====
-
-  // fetch basic state for enemy sync (in_dungeon, location)
-  void fetch_basics() {
-    // $7E:00A3 = dungeon index (00=Hyrule, 01=Escape, 02=Castle Tower, 03=EP, 04=DP, 05=ToH, 06=MM, 07=TR, 08=TH, 09=IP, 0A=Swamp, 0B=Skull, 0C=Ice, 0D=MM, 0E=TR, 0F=TH)
-    // or check $7E:00DD (overworld indicators)
-    uint8 area = bus::read_u8(0x7E00A3);
-    in_dungeon = (area >= 0x01 && area <= 0x0F);
-    location = area;
-  }
-
-    uint send_sprites(uint p) {
+  uint send_sprites(uint p) {
     uint len = sprites.length();
 
     uint start = 0;
@@ -1758,7 +1731,7 @@ class LocalGameState : GameState {
       }
 
       // send SRAM updates once every 16 frames:
-      if ((frame & 15) == 0 || forceSramSend) {
+      if ((frame & 15) == 0) {
         auto @envelope = create_envelope();
         rom.serialize_sram_ranges(envelope, serializeSramDelegate);
         p = send_packet(envelope, p);
@@ -1766,14 +1739,14 @@ class LocalGameState : GameState {
 
       // send dungeon and overworld SRAM alternating every 16 frames:
       if (settings.SyncUnderworld) {
-        if ((frame & 31) == 0 || forceSramSend) {
+        if ((frame & 31) == 0) {
           auto @envelope = create_envelope();
           serialize_sram(envelope,   0x0, 0x250); // dungeon rooms
           p = send_packet(envelope, p);
         }
       }
       if (settings.SyncOverworld) {
-        if ((frame & 31) == 16 || forceSramSend) {
+        if ((frame & 31) == 16) {
           auto @envelope = create_envelope();
           serialize_sram(envelope, 0x280, 0x340); // overworld events; heart containers, overlays
           p = send_packet(envelope, p);
@@ -1792,13 +1765,6 @@ class LocalGameState : GameState {
         auto @envelope = create_envelope();
         serialize_checksum(envelope);
         p = send_packet(envelope, p);
-      }
-
-      // send enemy sync every 8 frames (overlord + enemies + segments):
-      if (settings.SyncLttpEnemies && ((frame & 7) == 0 || forceSramSend)) {
-        fetch_overlord_data();
-        fetch_enemy_data();
-        send_enemy_data();
       }
 
       if (rom.is_smz3()) {
@@ -1830,7 +1796,6 @@ class LocalGameState : GameState {
       serialize_sm_sprite(envelope1);
       p = send_packet(envelope1, p);
     }
-    forceSramSend = false;
   }
 
   void update_wram() {
@@ -3018,243 +2983,6 @@ class LocalGameState : GameState {
 
       // reset Z offset:
       bus::write_u16(0x7E0024, 0);
-    }
-  }
-
-  // ==================== Enemy Sync Lifecycle Methods ====================
-
-  // fetch_basics: reads in_dungeon, location from WRAM (called at start of sprite main)
-  void fetch_basics() {
-    in_dungeon = bus::read_u8(0x7E001B);
-    actual_location =
-      uint32(in_dark_world & 1) << 17 |
-      uint32(in_dungeon & 1) << 16 |
-      uint32(in_dungeon != 0 ? dungeon_room : overworld_room);
-  }
-
-  // fetch_overlord_data: reads overlord pointer table at 0x7E0B00 and populates overlordU8Data/overlordU16Data arrays
-  void fetch_overlord_data() {
-    // Read overlord sprite data from WRAM at $7E0B00-$7E0B4F
-    // Each overlord has 8 bytes: id, xl, xh, yl, yh, ta, tb, tc, layer
-    for (uint8 s = 0; s < 8; s++) {
-      overlordU8Data[(ol8_id << 3) + s] = bus::read_u8(0x7E0000 + overlord_u8_ptrs[ol8_id] + s);
-      overlordU8Data[(ol8_xl << 3) + s] = bus::read_u8(0x7E0000 + overlord_u8_ptrs[ol8_xl] + s);
-      overlordU8Data[(ol8_xh << 3) + s] = bus::read_u8(0x7E0000 + overlord_u8_ptrs[ol8_xh] + s);
-      overlordU8Data[(ol8_yl << 3) + s] = bus::read_u8(0x7E0000 + overlord_u8_ptrs[ol8_yl] + s);
-      overlordU8Data[(ol8_yh << 3) + s] = bus::read_u8(0x7E0000 + overlord_u8_ptrs[ol8_yh] + s);
-      overlordU8Data[(ol8_ta << 3) + s] = bus::read_u8(0x7E0000 + overlord_u8_ptrs[ol8_ta] + s);
-      overlordU8Data[(ol8_tb << 3) + s] = bus::read_u8(0x7E0000 + overlord_u8_ptrs[ol8_tb] + s);
-      overlordU8Data[(ol8_tc << 3) + s] = bus::read_u8(0x7E0000 + overlord_u8_ptrs[ol8_tc] + s);
-      overlordU8Data[(ol8_layer << 3) + s] = bus::read_u8(0x7E0000 + overlord_u8_ptrs[ol8_layer] + s);
-    }
-
-    // Read u16 data (screen position) at 0x7E0B48
-    for (uint8 s = 0; s < 8; s++) {
-      uint16 base = 0x0B48 + (s * 2);
-      overlordU16Data[(ol16_scr << 4) + (s << 1)] = bus::read_u8(0x7E0000 + base + 0);
-      overlordU16Data[(ol16_scr << 4) + (s << 1) + 1] = bus::read_u8(0x7E0000 + base + 1);
-    }
-  }
-
-  // update_overlord_data: applies remote overlord data to local WRAM
-  void update_overlord_data() {
-    if (!settings.SyncLttpEnemies) return;
-
-    uint len = players.length();
-    for (uint i = 0; i < len; i++) {
-      auto @remote = players[i];
-      if (remote is null) continue;
-      if (remote is this) continue;
-      if (remote.ttl <= 0) continue;
-      if (remote.team != team) continue;
-      if (!is_really_in_same_location(remote.actual_location)) continue;
-
-      // Apply overlord u8 data
-      for (uint8 s = 0; s < 8; s++) {
-        uint8 id = remote.overlordU8Data[(ol8_id << 3) + s];
-        if (id == 0) continue; // Skip inactive overlords
-
-        bus::write_u8(0x7E0000 + overlord_u8_ptrs[ol8_id] + s, remote.overlordU8Data[(ol8_id << 3) + s]);
-        bus::write_u8(0x7E0000 + overlord_u8_ptrs[ol8_xl] + s, remote.overlordU8Data[(ol8_xl << 3) + s]);
-        bus::write_u8(0x7E0000 + overlord_u8_ptrs[ol8_xh] + s, remote.overlordU8Data[(ol8_xh << 3) + s]);
-        bus::write_u8(0x7E0000 + overlord_u8_ptrs[ol8_yl] + s, remote.overlordU8Data[(ol8_yl << 3) + s]);
-        bus::write_u8(0x7E0000 + overlord_u8_ptrs[ol8_yh] + s, remote.overlordU8Data[(ol8_yh << 3) + s]);
-        bus::write_u8(0x7E0000 + overlord_u8_ptrs[ol8_ta] + s, remote.overlordU8Data[(ol8_ta << 3) + s]);
-        bus::write_u8(0x7E0000 + overlord_u8_ptrs[ol8_tb] + s, remote.overlordU8Data[(ol8_tb << 3) + s]);
-        bus::write_u8(0x7E0000 + overlord_u8_ptrs[ol8_tc] + s, remote.overlordU8Data[(ol8_tc << 3) + s]);
-        bus::write_u8(0x7E0000 + overlord_u8_ptrs[ol8_layer] + s, remote.overlordU8Data[(ol8_layer << 3) + s]);
-      }
-
-      // Apply overlord u16 data
-      for (uint8 s = 0; s < 8; s++) {
-        uint16 base = 0x0B48 + (s * 2);
-        bus::write_u8(0x7E0000 + base + 0, remote.overlordU16Data[(ol16_scr << 4) + (s << 1)]);
-        bus::write_u8(0x7E0000 + base + 1, remote.overlordU16Data[(ol16_scr << 4) + (s << 1) + 1]);
-      }
-    }
-  }
-
-  // fetch_enemy_data: reads enemy pointer table at 0x7E0F78, follows pointers, reads health/X/Y/data
-  void fetch_enemy_data() {
-    // Enemy pointer table at $7E0F78: 16 slots * 2 bytes = 32 bytes
-    // Each slot points to enemy data (or 0 if inactive)
-    for (uint8 s = 0; s < 16; s++) {
-      uint16 ptr = bus::read_u16(0x7E0F78 + (s * 2));
-      
-      if (ptr == 0) {
-        // Clear enemy data for inactive slots
-        uint len = enemy_data_ptrs.length();
-        for (uint x = 0; x < len; x++) {
-          enemyData[(x << 4) + s] = 0;
-        }
-        continue;
-      }
-
-      // Read enemy data from the pointer address (relative to $7E0000)
-      uint32 addr = 0x7E0000 + ptr;
-      
-      // Read all enemy data fields (0x10 bytes per field, 55 fields total)
-      uint len = enemy_data_ptrs.length();
-      for (uint x = 0; x < len; x++) {
-        enemyData[(x << 4) + s] = bus::read_u8(addr + x);
-      }
-    }
-  }
-
-  // send_enemy_data: serializes overlord (0x13, 0x14) and enemy data (0x15) packets
-  void send_enemy_data() {
-    if (!settings.SyncLttpEnemies) return;
-    if (is_it_a_bad_time()) return;
-
-    // --- Packet 0x13: overlord u8 data ---
-    {
-      array<uint8> @ol8env = create_envelope(0x02);
-      ol8env.write_u8(uint8(0x13));
-      
-      // Calculate active overlord mask based on overlord ID
-      uint8 mask = 0;
-      for (uint8 s = 0; s < 8; s++) {
-        uint8 id = overlordU8Data[(ol8_id << 3) + s];
-        if (id != 0) {
-          mask |= (1 << s);
-        }
-      }
-      ol8env.write_u8(mask);
-
-      // Write u8 fields for active overlords
-      for (uint8 s = 0; s < 8; s++) {
-        if ((mask & (1 << s)) == 0) continue;
-        for (uint x = 0; x < overlord_u8_ptrs.length(); x++) {
-          ol8env.write_u8(overlordU8Data[(x << 3) + s]);
-        }
-      }
-      send_packet(ol8env, 0);
-    }
-
-    // --- Packet 0x14: overlord u16 data ---
-    {
-      array<uint8> @ol16env = create_envelope(0x02);
-      ol16env.write_u8(uint8(0x14));
-      
-      // Use same active overlord mask
-      uint8 mask = 0;
-      for (uint8 s = 0; s < 8; s++) {
-        uint8 id = overlordU8Data[(ol8_id << 3) + s];
-        if (id != 0) {
-          mask |= (1 << s);
-        }
-      }
-      ol16env.write_u8(mask);
-
-      // Write u16 fields for active overlords
-      for (uint8 s = 0; s < 8; s++) {
-        if ((mask & (1 << s)) == 0) continue;
-        for (uint x = 0; x < overlord_u16_ptrs.length(); x++) {
-          ol16env.write_u8(overlordU16Data[(x << 4) + (s << 1)]);
-          ol16env.write_u8(overlordU16Data[(x << 4) + (s << 1) + 1]);
-        }
-      }
-      send_packet(ol16env, 0);
-    }
-
-    // --- Packet 0x15: enemy sprite data ---
-    array<uint8> @envelope = create_envelope(0x02);
-    
-    // Packet type 0x15 for enemy data
-    envelope.write_u8(uint8(0x15));
-    
-    // Build active enemy mask (which slots have active enemies)
-    uint16 mask = 0;
-    for (uint8 s = 0; s < 16; s++) {
-      uint8 id = enemyData[(spr_id << 4) + s];
-      if (id != 0) {
-        mask |= (1 << s);
-      }
-    }
-    envelope.write_u16(mask);
-    
-    // Write in_dungeon flag
-    envelope.write_u8(in_dungeon);
-    
-    // Write enemy data for active slots
-    uint len = enemy_data_ptrs.length();
-    for (uint8 s = 0; s < 16; s++) {
-      if ((mask & (1 << s)) == 0) continue;
-      
-      for (uint x = 0; x < len; x++) {
-        // Handle spr_slot specially for overworld (2 bytes instead of 1)
-        if (x == spr_slot && in_dungeon == 0) {
-          envelope.write_u8(enemyData[(spr_slot << 4) + (s << 1)]);
-          envelope.write_u8(enemyData[(spr_slot << 4) + (s << 1) + 1]);
-          continue;
-        }
-        if (x == spr_slot + 1 && in_dungeon == 0) continue;
-        
-        envelope.write_u8(enemyData[(x << 4) + s]);
-      }
-    }
-
-    send_packet(envelope, 0);
-  }
-
-  // update_enemy_data: applies remote enemy data to local WRAM
-  void update_enemy_data() {
-    if (!settings.SyncLttpEnemies) return;
-    if (is_it_a_bad_time()) return;
-
-    uint len = players.length();
-    for (uint i = 0; i < len; i++) {
-      auto @remote = players[i];
-      if (remote is null) continue;
-      if (remote is this) continue;
-      if (remote.ttl <= 0) continue;
-      if (remote.team != team) continue;
-      if (!is_really_in_same_location(remote.actual_location)) continue;
-
-      // Apply enemy data to local WRAM
-      for (uint8 s = 0; s < 16; s++) {
-        uint8 id = remote.enemyData[(spr_id << 4) + s];
-        if (id == 0) continue; // Skip inactive enemies
-
-        // Get the pointer for this slot from local RAM
-        uint16 ptr = bus::read_u16(0x7E0F78 + (s * 2));
-        if (ptr == 0) continue;
-
-        uint32 addr = 0x7E0000 + ptr;
-        
-        // Write enemy data fields
-        uint edlen = enemy_data_ptrs.length();
-        for (uint x = 0; x < edlen; x++) {
-          // Handle spr_slot specially for overworld
-          if (x == spr_slot && remote.in_dungeon == 0) {
-            bus::write_u8(addr + x, remote.enemyData[(spr_slot << 4) + (s << 1)]);
-            continue;
-          }
-          if (x == spr_slot + 1 && remote.in_dungeon == 0) continue;
-          
-          bus::write_u8(addr + x, remote.enemyData[(x << 4) + s]);
-        }
-      }
     }
   }
 };

@@ -30,11 +30,6 @@ abstract class ROMMapping {
   void register_pc_intercepts() {
     // intercept at PC=`JSR ClearOamBuffer; JSL MainRouting`:
     cpu::register_pc_interceptor(rom.fn_pre_main_loop, @on_main_alttp);
-
-    // Sprite_Main#_068328
-    // Sprite_Main_RTL#_0683C1
-    cpu::register_pc_interceptor(fastrom + 0x068328, @on_sprite_main_alttp);
-    cpu::register_pc_interceptor(fastrom + 0x0683C1, @on_sprite_main_end_alttp);
   }
   void update_extras() {}
 
@@ -748,8 +743,7 @@ class SMZ3Mapping : RandomizerMapping {
   bool is_smz3() override { return true;}
 
   void register_pc_intercepts() override {
-    // call base class method for LTTP interceptors (enables enemy sync):
-    ROMMapping::register_pc_intercepts();
+    cpu::register_pc_interceptor(rom.fn_pre_main_loop, @on_main_alttp);
 
     // SM main is at 0x82893D (PHK; PLB)
     // SM main @loop (PHP; REP #$30) https://github.com/strager/supermetroid/blob/master/src/bank82.asm#L1066

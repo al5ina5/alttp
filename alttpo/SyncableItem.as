@@ -186,7 +186,7 @@ class SyncableItem {
 
   void update_sm_counts() {
     int base = 0;
-    if (local.get_in_sm()) {
+    if (local.in_sm_for_items) {
       base = 0x7E09A2;
     } else {
       base = 0xA17900;
@@ -475,7 +475,6 @@ uint16 mutateSword(SRAM@ localSRAM, uint16 oldValue, uint16 newValue) {
       // JSL DecompSwordGfx
       pb.jsl(rom.fn_decomp_sword_gfx);
       pb.jsl(rom.fn_sword_palette);
-      local.lttp_uniqtile_clear_sword();
     }
     return newValue;
   }
@@ -493,7 +492,6 @@ uint16 mutateShield(SRAM@ localSRAM, uint16 oldValue, uint16 newValue) {
       // JSL DecompShieldGfx
       pb.jsl(rom.fn_decomp_shield_gfx);
       pb.jsl(rom.fn_shield_palette);
-      local.lttp_uniqtile_clear_shield();
     }
     //local.gotShield = newValue;
     return newValue;

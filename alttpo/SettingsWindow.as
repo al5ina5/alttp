@@ -62,7 +62,10 @@ class SettingsWindow {
   private string serverAddress;
   string ServerAddress {
     get { return serverAddress; }
-    set { serverAddress = value; }
+    set {
+      serverAddress = value;
+      if (txtServerAddress !is null) txtServerAddress.text = value;
+    }
   }
 
   private string groupPadded;
@@ -76,19 +79,26 @@ class SettingsWindow {
     set {
       groupTrimmed = value;
       groupPadded = padTo(value, 20);
+      if (txtGroup !is null) txtGroup.text = value;
     }
   }
 
   private uint8 team;
   uint8 Team {
     get { return team; }
-    set { team = value; }
+    set {
+      team = value;
+      if (txtTeam !is null) txtTeam.text = fmtInt(value);
+    }
   }
 
   private string name;
   string Name {
     get { return name; }
-    set { name = value; }
+    set {
+      name = value;
+      if (txtName !is null) txtName.text = value;
+    }
   }
 
   uint16 player_color;
@@ -198,7 +208,7 @@ class SettingsWindow {
   private bool syncProgress;
   bool SyncProgress { get { return syncProgress; } }
 
-  bool SyncLttpEnemies = true;
+  bool SyncEnemies = false;
   bool SyncEnemyDebug = false;
 
   private bool discordEnable;
@@ -210,6 +220,9 @@ class SettingsWindow {
   bool DiscordPrivate {
     get { return discordPrivate; }
   }
+
+  // Couchforge / kiosk: hide Join window and connect from alttpo.bml on load.
+  bool autoConnect = false;
 
   private void setColorSliders() {
     // set the color sliders:
@@ -307,11 +320,12 @@ class SettingsWindow {
     syncCrystals = doc["feature/syncCrystals"].booleanOr(true);
     syncProgress = doc["feature/syncProgress"].booleanOr(true);
 
-    SyncLttpEnemies = doc["feature/SyncLttpEnemies"].booleanOr(true);
+    SyncEnemies = doc["feature/SyncEnemies"].booleanOr(false);
     SyncEnemyDebug = doc["feature/SyncEnemyDebug"].booleanOr(false);
 
     discordEnable = doc["feature/discordEnable"].booleanOr(false);
     discordPrivate = doc["feature/discordPrivate"].booleanOr(false);
+    autoConnect = doc["feature/autoConnect"].booleanOr(false);
 
     // set GUI controls from values:
     setServerSettingsGUI();
@@ -320,6 +334,14 @@ class SettingsWindow {
 
     // apply player changes:
     playerSettingsChanged();
+
+    // Ensure GroupPadded is filled (raw assign above skips the setter).
+    GroupTrimmed = groupTrimmed;
+
+    if (autoConnect) {
+      window.visible = false;
+      connect();
+    }
   }
 
   void save() {
@@ -363,11 +385,12 @@ class SettingsWindow {
     doc.create("feature/syncCrystals").value = fmtBool(syncCrystals);
     doc.create("feature/syncProgress").value = fmtBool(syncProgress);
 
-    doc.create("feature/SyncLttpEnemies").value = fmtBool(SyncLttpEnemies);
+    doc.create("feature/SyncEnemies").value = fmtBool(SyncEnemies);
     doc.create("feature/SyncEnemyDebug").value = fmtBool(SyncEnemyDebug);
 
     doc.create("feature/discordEnable").value = fmtBool(discordEnable);
     doc.create("feature/discordPrivate").value = fmtBool(discordPrivate);
+    doc.create("feature/autoConnect").value = fmtBool(autoConnect);
 
     UserSettings::save("alttpo.bml", doc);
   }
@@ -573,11 +596,12 @@ class SettingsWindow {
 
     vl.resize();
     build_advanced();
-    window.visible = true;
-    window.setFocused();
+    // Couchforge: never show Join modal (auto-connect from alttpo.bml / init.as).
+    window.visible = false;
   }
 
   void doActivate() {
+    if (autoConnect) return;
     window.doActivate();
   }
 
@@ -1188,15 +1212,11 @@ class SettingsWindow {
       auto @hz = GUI::HorizontalLayout();
       vl.append(hz, GUI::Size(-1, 0));
 
-      GUI::CheckBox@ c = GUI::CheckBox(SyncLttpEnemies);
-        c.text = "Sync Enemies & Bosses";
-        c.onToggle = function(GUI::CheckBox@ cb) { SyncLttpEnemies = cb.marked; };
-      hz.append(c, GUI::Size(-1, 0));
-
-      @c = GUI::CheckBox(SyncEnemyDebug);
-      c.text = "Enemy Debug Window";
-      c.onToggle = function(GUI::CheckBox@ cb) { SyncEnemyDebug = cb.marked; };
-      hz.append(c, GUI::Size(-1, 0));
+      // Enemy sync UI omitted: incomplete in this fork and CheckBox is not in hiro bindings.
+      // Use CheckLabel pattern if/when enemy sync is finished.
+      auto @lbl = GUI::Label();
+      lbl.text = "(Enemy sync WIP)";
+      hz.append(lbl, GUI::Size(-1, 0));
     }
 
     {

@@ -101,6 +101,8 @@ class TilemapChanges {
 
   void write_vram(uint i, int32 c) {
     uint16 tile = uint16(c & 0x00ffff);
+    uint8 attr = uint8((c & 0xff0000) >> 16);
+    uint16 vramEntry = tile | (uint16(attr) << 8);
 
     // write to VRAM:
     if (overworld) {
@@ -146,7 +148,7 @@ class TilemapChanges {
       //if (debugRTDS) {
       //  message("vram[0x" + fmtHex(vram, 4) + "] <- 0x" + fmtHex(tile, 4));
       //}
-      ppu::vram[vram] = tile;
+      ppu::vram[vram] = vramEntry;
     }
   }
 

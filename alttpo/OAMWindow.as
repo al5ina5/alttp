@@ -3,7 +3,6 @@ OAMWindow @oamWindow;
 class OAMWindow {
   GUI::Color yellow;
   GUI::Color clrEnabled;
-  GUI::Color clrEnabledHi;
   GUI::Color clrDisabled;
 
   GUI::Window @window;
@@ -11,8 +10,7 @@ class OAMWindow {
 
   OAMWindow() {
     yellow      = GUI::Color(240, 240,   0);
-    clrEnabled   = GUI::Color(240, 240, 240);
-    clrEnabledHi = GUI::Color(240, 240,   0);
+    clrEnabled  = GUI::Color(240, 240, 240);
     clrDisabled = GUI::Color(110, 110, 110);
 
     @window = GUI::Window(0, 240*8*3, true);
@@ -64,7 +62,7 @@ class OAMWindow {
         auto @s = local.sprs[i*16+j];
         //s.decodeOAMTable(i*16+j);
         //s.fetchOAM(i*16+j);
-        col[i][j].foregroundColor = s.is_enabled ? ( s.chr < 0x100 ? clrEnabled : clrEnabledHi ) : clrDisabled;
+        col[i][j].foregroundColor = s.is_enabled ? clrEnabled : clrDisabled;
         col[i][j].text = fmtHex(s.chr, 3);
         //col[i][j].text = fmtInt(s.x) + "," + fmtInt(s.y);
         //col[i][j].text = fmtHex(s.priority, 1);

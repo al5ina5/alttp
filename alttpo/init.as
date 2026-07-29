@@ -5,9 +5,6 @@ bool debug = false;
 
 bool debugReadout = false;
 bool debugData = false;
-#include "SM_Enemy.as"
-#include "EnemyWindow.as"
-
 bool debugSRAM = false;
 bool debugNet = false;
 bool debugOAM = false;
@@ -79,8 +76,7 @@ void init() {
 
   if (enablePlayerList) {
     @playersWindow = PlayersWindow();
-    @enemyWindow = EnemyWindow();
-    }
+  }
 
   settings.doActivate();
 }
