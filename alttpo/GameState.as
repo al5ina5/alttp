@@ -1,7 +1,7 @@
 
-// Keep esync protocol version. Packet kinds 0x17/0x18 are nested payload types
-// (checksum / full_state), not the script protocol byte.
-const uint8 script_protocol = 0x17;
+// Bumped for uint16 frame sequence (was 0x17 on stock esync with uint8 frame).
+// Nested payload kinds 0x17/0x18 = checksum / full_state (separate from this byte).
+const uint8 script_protocol = 0x18;
 
 // for message rate limiting to prevent noise
 uint8 rate_limit = 0x00;

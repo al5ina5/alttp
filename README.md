@@ -17,7 +17,7 @@ ALttPO script integration for [bsnes-as](//github.com/alttpo/bsnes-as).
 | Small keys per dungeon | ⚠️ Off by default | ✅ **Enabled by default** |
 | Bottle contents | ✅ | ✅ |
 | Health capacity sync | ✅ | ✅ |
-| **Frame sequence numbers** | ❌ uint8 | ✅ **uint16** (esync `script_protocol` 0x17) |
+| **Frame sequence numbers** | ❌ uint8 | ✅ **uint16** (`script_protocol` 0x18) |
 | **Desync detection (checksums)** | ❌ | ✅ **FNV-1a** packet 0x17 |
 | **Snapshot/resync protocol** | ❌ | ✅ **RequestSnapshot 0x03 / SnapshotData 0x04** + packet 0x18 |
 | **VRAM attribute byte** | ❌ Bug | ✅ **Fixed** |
