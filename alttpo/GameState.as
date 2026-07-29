@@ -1,4 +1,6 @@
 
+// Keep esync protocol version. Packet kinds 0x17/0x18 are nested payload types
+// (checksum / full_state), not the script protocol byte.
 const uint8 script_protocol = 0x17;
 
 // for message rate limiting to prevent noise
@@ -29,6 +31,17 @@ void insertUnique(array<uint16> &a, uint16 v) {
 
 const uint16 small_keys_min_offs = 0xF37C;
 const uint16 small_keys_max_offs = 0xF38C;
+
+// FNV-1a hash for desync detection
+uint32 fnv1a(array<uint8>@ data, uint start = 0, uint end = 0) {
+  uint32 hash = 0x811C9DC5;
+  if (end == 0 || end > data.length()) { end = data.length(); }
+  for (uint i = start; i < end; i++) {
+    hash ^= uint32(data[i]);
+    hash *= 0x01000193;
+  }
+  return hash;
+}
 
 const uint ol8_id = 0;
 const uint ol8_xl = 1;
@@ -223,6 +236,13 @@ class GameState {
   int index = -1; // player index in server's array (local is always -1)
   uint8 _team = 0; // team number to sync with
 
+  uint16 last_received_frame = 0;
+  uint16 dropped_frames = 0;
+
+  // desync detection:
+  uint32 checksum = 0;
+  uint32 remote_checksum = 0;
+
   // graphics data for current frame:
   array<Sprite@> sprites;
   array<array<uint16>> chrs(512);
@@ -304,7 +324,7 @@ class GameState {
   }
 
   // values copied from RAM:
-  uint8  frame;
+  uint16 frame;
   uint32 actual_location;
   uint32 last_actual_location;
   uint32 location;
@@ -694,15 +714,19 @@ class GameState {
       team = t;
     }
 
-    auto frame = r[c++];
-    //message("frame = " + fmtHex(frame, 2));
-    if (frame < this.frame && this.frame < 0xff) {
-      // stale data:
-      // TODO fix check when wrapping around 0xFF to 0x00
-      //message("stale frame " + fmtHex(frame, 2) + " vs " + fmtHex(this.frame, 2));
+    auto frame = uint16(r[c++]) | (uint16(r[c++]) << 8);
+    // properly handle uint16 sequence number wrap-around:
+    uint16 seqDiff = uint16(frame - this.frame);
+    if (seqDiff > 0x8000) {
+      // old/stale packet (wrapped around)
       this.frame = frame;
       return false;
     }
+    // detect dropped frames:
+    if (this.last_received_frame != 0 && frame != this.last_received_frame) {
+      dropped_frames += uint16(frame - this.last_received_frame - 1);
+    }
+    this.last_received_frame = frame;
     this.frame = frame;
 
     int maxc = int(r.length());
@@ -732,6 +756,8 @@ class GameState {
         case 0x14: c = deserialize_overlord_data(r, c); break;
         case 0x15: c = deserialize_uniqtiles(r, c); break;
         case 0x16: c = deserialize_nak_uniqtiles(r, c); break;
+        case 0x17: c = deserialize_checksum(r, c); break;
+        case 0x18: c = deserialize_full_state(r, c); break;
         default:
           message("unknown packet type " + fmtHex(packetType, 2) + " at offs " + fmtHex(c, 3));
           break;
@@ -1254,6 +1280,44 @@ class GameState {
       local.uniqtile_new_insertLast(idx);
     }
 
+    return c;
+  }
+
+  uint32 compute_checksum() {
+    // hash sram[0..0x4FF], module, x, y using fnv1a()
+    array<uint8> buf;
+    buf.reserve(0x500 + 5);
+    for (uint i = 0; i < 0x500; i++) {
+      buf.insertLast(sram[i]);
+    }
+    buf.insertLast(module);
+    buf.insertLast(uint8(x & 0xFF));
+    buf.insertLast(uint8((x >> 8) & 0xFF));
+    buf.insertLast(uint8(y & 0xFF));
+    buf.insertLast(uint8((y >> 8) & 0xFF));
+    return fnv1a(buf);
+  }
+
+  int deserialize_checksum(array<uint8> r, int c) {
+    remote_checksum = uint32(r[c++]) | (uint32(r[c++]) << 8) | (uint32(r[c++]) << 16) | (uint32(r[c++]) << 24);
+    checksum = compute_checksum();
+    if (remote_checksum != checksum) {
+      dropped_frames++;
+      message("DESYNC DETECTED for player " + name + " (checksum mismatch)");
+    }
+    return c;
+  }
+
+  int deserialize_full_state(array<uint8> r, int c) {
+    // read sram[0..0x4FF]:
+    uint16 sram_count = uint16(r[c++]) | (uint16(r[c++]) << 8);
+    for (uint i = 0; i < sram_count && i < 0x500; i++) {
+      sram[i] = r[c++];
+    }
+    module = r[c++];
+    x = uint16(r[c++]) | (uint16(r[c++]) << 8);
+    y = uint16(r[c++]) | (uint16(r[c++]) << 8);
+    calc_hitbox();
     return c;
   }
 

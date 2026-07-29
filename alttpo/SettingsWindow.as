@@ -55,13 +55,19 @@ class SettingsWindow {
   private GUI::Button @btnAdvanced;
   private GUI::Button @btnPresetDefault;
   private GUI::Button @btnPresetMultiworld;
+  private GUI::Button @btnRequestResync;
+
+  bool requestResync = false;
 
   bool started;
 
   private string serverAddress;
   string ServerAddress {
     get { return serverAddress; }
-    set { serverAddress = value; }
+    set {
+      serverAddress = value;
+      if (txtServerAddress !is null) txtServerAddress.text = value;
+    }
   }
 
   private string groupPadded;
@@ -75,19 +81,26 @@ class SettingsWindow {
     set {
       groupTrimmed = value;
       groupPadded = padTo(value, 20);
+      if (txtGroup !is null) txtGroup.text = value;
     }
   }
 
   private uint8 team;
   uint8 Team {
     get { return team; }
-    set { team = value; }
+    set {
+      team = value;
+      if (txtTeam !is null) txtTeam.text = fmtInt(value);
+    }
   }
 
   private string name;
   string Name {
     get { return name; }
-    set { name = value; }
+    set {
+      name = value;
+      if (txtName !is null) txtName.text = value;
+    }
   }
 
   uint16 player_color;
@@ -211,6 +224,9 @@ class SettingsWindow {
     get { return discordPrivate; }
   }
 
+  // Couchforge / kiosk: hide Join window and connect from alttpo.bml on load.
+  bool autoConnect = false;
+
   private void setColorSliders() {
     // set the color sliders:
     slRed.position   = ( player_color        & 31);
@@ -301,7 +317,7 @@ class SettingsWindow {
     syncOverworld = doc["feature/syncOverworld"].booleanOr(true);
     syncItems = doc["feature/syncItems"].booleanOr(true);
     syncPendants = doc["feature/syncPendants"].booleanOr(true);
-    syncSmallKeys = doc["feature/syncSmallKeys"].booleanOr(false);
+    syncSmallKeys = doc["feature/syncSmallKeys"].booleanOr(true);
     syncTilemap = doc["feature/syncTilemap"].booleanOr(true);
     syncChests = doc["feature/syncChests"].booleanOr(true);
     syncHearts = doc["feature/syncHearts"].booleanOr(true);
@@ -313,6 +329,7 @@ class SettingsWindow {
 
     discordEnable = doc["feature/discordEnable"].booleanOr(false);
     discordPrivate = doc["feature/discordPrivate"].booleanOr(false);
+    autoConnect = doc["feature/autoConnect"].booleanOr(false);
 
     // set GUI controls from values:
     setServerSettingsGUI();
@@ -321,6 +338,14 @@ class SettingsWindow {
 
     // apply player changes:
     playerSettingsChanged();
+
+    // Ensure GroupPadded is filled (raw assign above skips the setter).
+    GroupTrimmed = groupTrimmed;
+
+    if (autoConnect) {
+      window.visible = false;
+      connect();
+    }
   }
 
   void save() {
@@ -368,6 +393,7 @@ class SettingsWindow {
 
     doc.create("feature/discordEnable").value = fmtBool(discordEnable);
     doc.create("feature/discordPrivate").value = fmtBool(discordPrivate);
+    doc.create("feature/autoConnect").value = fmtBool(autoConnect);
 
     UserSettings::save("alttpo.bml", doc);
   }
@@ -573,11 +599,16 @@ class SettingsWindow {
 
     vl.resize();
     build_advanced();
-    window.visible = true;
-    window.setFocused();
+    if (!autoConnect) {
+      window.visible = true;
+      window.setFocused();
+    } else {
+      window.visible = false;
+    }
   }
 
   void doActivate() {
+    if (autoConnect) return;
     window.doActivate();
   }
 
@@ -830,7 +861,7 @@ class SettingsWindow {
     syncOverworld = true;
     syncItems = true;
     syncPendants = true;
-    syncSmallKeys = false;
+    syncSmallKeys = true;
     syncTilemap = true;
     syncChests = true;
     syncHearts = true;
@@ -1342,6 +1373,25 @@ class SettingsWindow {
       vl.append(hz, GUI::Size(-1, 0));
 
       auto @lbl = GUI::Label();
+      lbl.text = "Diagnostics:";
+      hz.append(lbl, GUI::Size(sx150, 0));
+
+      @hz = GUI::HorizontalLayout();
+      vl.append(hz, GUI::Size(-1, 0));
+
+      @btnRequestResync = GUI::Button();
+      btnRequestResync.text = "Request Resync";
+      btnRequestResync.toolTip =
+        "Send a request to the current host for a full game state snapshot. Useful for late joiners or to recover from a desync.";
+      btnRequestResync.onActivate(@GUI::Callback(btnRequestResyncClicked));
+      hz.append(btnRequestResync, GUI::Size(-1, -1));
+    }
+
+    {
+      auto @hz = GUI::HorizontalLayout();
+      vl.append(hz, GUI::Size(-1, 0));
+
+      auto @lbl = GUI::Label();
       lbl.text = "Presets:";
       hz.append(lbl, GUI::Size(sx150, 0));
 
@@ -1365,6 +1415,12 @@ class SettingsWindow {
       btnPresetMultiworld.onActivate(@GUI::Callback(btnPresetMultiworldClicked));
       hz.append(btnPresetMultiworld, GUI::Size(-1, -1));
     }
+  }
+
+  // callback:
+  private void btnRequestResyncClicked() {
+    message("Request Resync button clicked");
+    requestResync = true;
   }
 
   // callback:

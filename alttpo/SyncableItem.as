@@ -664,6 +664,9 @@ void nameForSword            (uint16 _, uint16 new, NotifyItemReceived @notify) 
 void nameForShield           (uint16 _, uint16 new, NotifyItemReceived @notify) { notifySingleItem(shieldNames, notify, new); }
 void nameForArmor            (uint16 _, uint16 new, NotifyItemReceived @notify) { notifySingleItem(armorNames, notify, new); }
 void nameForBottle           (uint16 _, uint16 new, NotifyItemReceived @notify) { notifySingleItem(bottleNames, notify, new); }
+void nameForBombs          (uint16 _, uint16 new, NotifyItemReceived @notify) { notify(fmtInt(new) + " bombs"); }
+void nameForArrows        (uint16 _, uint16 new, NotifyItemReceived @notify) { notify(fmtInt(new) + " arrows"); }
+void nameForRupees        (uint16 _, uint16 new, NotifyItemReceived @notify) { notify(fmtInt(new) + " rupees"); }
 
 void nameForMagic         (uint16 _, uint16 new, NotifyItemReceived @notify) { notifySingleItem(magicNames, notify, new); }
 void nameForWorldState    (uint16 _, uint16 new, NotifyItemReceived @notify) { notifySingleItem(worldStateNames, notify, new); }

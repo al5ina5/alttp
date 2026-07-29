@@ -82,6 +82,29 @@ void receive() {
         // kind == 0x82 should be response to another player's broadcast-to-sector.
         index = uint16(r[c++]) | (uint16(r[c++]) << 8);
         process_message(index, r, c);
+      } else if (kind == 0x83) {
+        // kind == 0x83 is a Snapshot Request forwarded by the server to the host.
+        // The requesting player's index follows:
+        index = uint16(r[c++]) | (uint16(r[c++]) << 8);
+        // Respond with a full state snapshot:
+        {
+          auto @env = local.make_packet_snapshot_data(uint16(index));
+          uint p = 0;
+          p = local.send_packet(env, p);
+        }
+      } else if (kind == 0x84) {
+        // kind == 0x84 is a SnapshotData unicast from the server.
+        // Server already routed to us; payload is game header + 0x18 full_state.
+        index = uint16(r[c++]) | (uint16(r[c++]) << 8);
+        uint8 prot = r[c++];
+        if (prot == script_protocol) {
+          r[c++]; // team - skip
+          r[c++]; r[c++]; // frame - skip
+          // c points at 0x18 packet type; skip it:
+          c++; // skip packetType 0x18
+          local.deserialize_full_state(r, c);
+          local.notify("Resync complete!");
+        }
       } else {
         // unrecognized message kind, skip it:
         continue;

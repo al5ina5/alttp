@@ -1673,6 +1673,29 @@ class LocalGameState : GameState {
     r.write_str(namePadded);
   }
 
+  void serialize_checksum(array<uint8> &r) {
+    r.write_u8(uint8(0x17));
+    // write checksum as little-endian uint32:
+    r.write_u8(uint8(checksum & 0xFF));
+    r.write_u8(uint8((checksum >> 8) & 0xFF));
+    r.write_u8(uint8((checksum >> 16) & 0xFF));
+    r.write_u8(uint8((checksum >> 24) & 0xFF));
+  }
+
+  void serialize_full_state(array<uint8> &r) {
+    r.write_u8(uint8(0x18));
+
+    uint16 sram_count = 0x500;
+    r.write_u16(sram_count);
+    for (uint i = 0; i < sram_count; i++) {
+      r.write_u8(sram[i]);
+    }
+
+    r.write_u8(module);
+    r.write_u16(x);
+    r.write_u16(y);
+  }
+
   void serialize_enemy_data(array<uint8> &r) {
     r.write_u8(uint8(0x12));
 
@@ -2161,9 +2184,29 @@ class LocalGameState : GameState {
 
       // protocol starts with team number:
       envelope.write_u8(team);
-      // frame number to correlate separate packets together:
-      envelope.write_u8(frame);
+      // frame sequence number to detect dropped/out-of-order packets:
+      envelope.write_u16(frame);
     }
+  }
+
+  array<uint8> @make_packet_request_snapshot() {
+    array<uint8> @envelope = make_server_envelope(0x03);
+
+    write_game_packet_header(envelope);
+
+    return envelope;
+  }
+
+  array<uint8> @make_packet_snapshot_data(uint16 targetIndex) {
+    array<uint8> @envelope = make_server_envelope(0x04);
+
+    // target client index first so the server can route the unicast:
+    envelope.write_u16(targetIndex);
+
+    write_game_packet_header(envelope);
+    serialize_full_state(envelope);
+
+    return envelope;
   }
 
   array<uint8> @make_packet_request_index() {
@@ -2248,6 +2291,13 @@ class LocalGameState : GameState {
       last_sent = right_meow;
     }
 
+    // check if player requested a resync:
+    if (settings.requestResync) {
+      settings.requestResync = false;
+      auto @env = make_packet_request_snapshot();
+      p = send_packet(env, p);
+    }
+
     // send main packet:
     {
       auto @envelope = make_packet_broadcast();
@@ -2272,6 +2322,14 @@ class LocalGameState : GameState {
         }
       }
 
+      p = send_packet(envelope, p);
+    }
+
+    // send checksum every 8 frames for desync detection:
+    if ((frame & 7) == 0) {
+      checksum = compute_checksum();
+      auto @envelope = make_packet_broadcast();
+      serialize_checksum(envelope);
       p = send_packet(envelope, p);
     }
 

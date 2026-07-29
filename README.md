@@ -1,6 +1,32 @@
 # A Link to the Past Online - ALttPO
 ALttPO script integration for [bsnes-as](//github.com/alttpo/bsnes-as).
 
+> **Our fork:** `al5ina5/alttp` (`unstable-esync-base`) rebased onto official/mysterypaintwo **esync**.
+> Aiming for 100% playable full multiplayer.
+
+## Progress (vs upstream / esync)
+
+| Feature | Upstream | Our fork |
+|---------|----------|----------|
+| Equipment sync (swords, items) | ✅ | ✅ |
+| Dungeon items (compasses, maps, big keys) | ✅ | ✅ |
+| Tilemap sync (overworld) | ✅ | ✅ |
+| **Bombs (count)** | ❌ TODO | ✅ **Enabled** (type=1 max) |
+| **Arrows (count)** | ❌ TODO | ✅ **Enabled** (type=1 max) |
+| **Rupees** | ❌ Not synced | ✅ **Enabled** (type=1 max) |
+| Small keys per dungeon | ⚠️ Off by default | ✅ **Enabled by default** |
+| Bottle contents | ✅ | ✅ |
+| Health capacity sync | ✅ | ✅ |
+| **Frame sequence numbers** | ❌ uint8 | ✅ **uint16** (esync `script_protocol` 0x17) |
+| **Desync detection (checksums)** | ❌ | ✅ **FNV-1a** packet 0x17 |
+| **Snapshot/resync protocol** | ❌ | ✅ **RequestSnapshot 0x03 / SnapshotData 0x04** + packet 0x18 |
+| **VRAM attribute byte** | ❌ Bug | ✅ **Fixed** |
+| Enemy/boss sync | ❌ | ✅ **DONE (from esync)** |
+| Underworld tile sync (pots, star tiles) | ⚠️ Partial | ✅ VRAM attr fix; pots/stars still limited |
+| Couchforge autoConnect | ❌ | ✅ **feature/autoConnect** — see [docs/COUCHFORGE-SETUP.md](docs/COUCHFORGE-SETUP.md) |
+| Object sync (visible bombs/arrows projectiles) | ❌ Disabled | ❌ Not re-added (esync left it off) |
+| Unified game launcher | ❌ | ❌ Future roadmap |
+
 See a demo video: https://www.youtube.com/watch?v=_MTfXCUXawg
 
 Join us on discord! https://discord.gg/AVQ2yKd - this is where the community is and you get access to latest updates and be able to suggest and vote on new features.
